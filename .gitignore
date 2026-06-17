@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+logs/*
+data/raw/*
+data/work/*
+data/staging/*
+data/review/*
+data/core_export/*
+!data/raw/.gitkeep
+!data/work/.gitkeep
+!data/staging/.gitkeep
+!data/review/.gitkeep
+!data/core_export/.gitkeep

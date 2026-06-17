@@ -1,0 +1,42 @@
+record_types:
+  ref:
+    allowed_keys:
+      - rt
+      - title
+      - doi
+      - pmid
+      - journal
+      - year
+      - evidence_span
+
+  agent:
+    allowed_keys:
+      - rt
+      - name
+      - agent_type
+      - canonical_smiles
+      - structure_diagram_refs
+      - evidence_span
+
+  triple:
+    allowed_keys:
+      - rt
+      - tk
+      - modality
+      - outcome_class
+      - mechanism_tags
+      - evidence_span
+
+  assay:
+    allowed_keys:
+      - rt
+      - tk
+      - assay_category
+      - assay_platform
+      - cell_line
+      - primary_metric
+      - primary_value
+      - primary_unit
+      - polarity
+      - figure_ref
+      - evidence_span

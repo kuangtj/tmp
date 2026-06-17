@@ -1,0 +1,30 @@
+triple:
+  tk_must_have_two_pipes: true
+  forbidden_generic_effector:
+    - PROTAC
+    - degrader
+    - molecular glue
+    - compound
+    - antibody
+    - E3 ligase
+
+structure:
+  full_smiles_must_be_rdkit_valid: true
+  forbid_placeholder_in_final_smiles: true
+  review_if_multiple_conflicting_smiles: true
+
+assay:
+  allowed_primary_metric:
+    - Kd
+    - Ki
+    - IC50
+    - EC50
+    - DC50
+    - Dmax
+    - Fold_Change
+    - Percent_Effect
+    - Half_Life
+    - Other
+
+evidence:
+  require_evidence_span: true

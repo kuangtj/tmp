@@ -1,0 +1,17 @@
+effectors:
+  CRBN:
+    canonical: CRBN
+    mechanism_tags: E3_UPS
+  VHL:
+    canonical: VHL
+    mechanism_tags: E3_UPS
+  IAP:
+    canonical: IAP
+    mechanism_tags: E3_UPS
+  MDM2:
+    canonical: MDM2
+    mechanism_tags: E3_UPS
+
+cell_lines: {}
+targets: {}
+compounds: {}

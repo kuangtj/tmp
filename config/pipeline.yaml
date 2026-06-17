@@ -1,0 +1,21 @@
+stages:
+  - ingest
+  - parse_pdf
+  - plan
+  - image_to_smiles
+  - structure_qc
+  - compound_alignment
+  - ipm_extraction
+  - assay_extraction
+  - entity_normalization
+  - global_qc
+  - review
+  - load_core
+
+paths:
+  raw: "data/raw"
+  work: "data/work"
+  staging: "data/staging"
+  review: "data/review"
+  core_export: "data/core_export"
+  logs: "logs"
