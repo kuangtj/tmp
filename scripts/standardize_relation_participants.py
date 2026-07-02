@@ -88,27 +88,31 @@ def require_cols(conn, table: str, cols: List[str]) -> None:
 
 
 def preflight(conn) -> None:
+#    require_cols(conn, "stg_relation_participant", [
+#        "participant_id",
+#        "doc_id",
+#        "participant_key",
+#        "name",
+#        "canonical_name",
+#        "entity_type",
+#        "relation_ids_json",
+#        "role_entries_json",
+#        "ids_json",
+#        "sequence_json",
+#        "structure_json",
+#        "standardization_json",
+#        "evidence_span",
+#        "evidence_spans_json",
+#        "confidence",
+#        "status",
+#        "review_required",
+#        "qc_reasons",
+#        "qc_warnings",
+#        "raw_output",
+#    ])
+    # 把这段校验要求删掉，或者改为新版的列名
     require_cols(conn, "stg_relation_participant", [
-        "participant_id",
-        "doc_id",
-        "participant_key",
-        "name",
-        "canonical_name",
-        "entity_type",
-        "relation_ids_json",
-        "role_entries_json",
-        "ids_json",
-        "sequence_json",
-        "structure_json",
-        "standardization_json",
-        "evidence_span",
-        "evidence_spans_json",
-        "confidence",
-        "status",
-        "review_required",
-        "qc_reasons",
-        "qc_warnings",
-        "raw_output",
+        "participant_id", "entity_name", "relation_id", "evidence_text", "qc_reasons_json"
     ])
 
     require_cols(conn, "raw_text_block", [
@@ -279,17 +283,35 @@ def has_sequence_info(rec: Dict[str, Any]) -> bool:
         or seq.get("modified_sequence")
     )
 
-def load_participants(conn, doc_id: str) -> List[Dict[str, Any]]:
+#def load_participants(conn, doc_id: str) -> List[Dict[str, Any]]:
+#    rows = conn.execute("""
+#    SELECT *
+#    FROM stg_relation_participant
+#    WHERE doc_id=?
+#      AND COALESCE(name, '') != ''
+#    ORDER BY name
+#    """, (doc_id,)).fetchall()
+#
+#    return [dict(r) for r in rows]
+
+def load_participants(conn, doc_id):
     rows = conn.execute("""
-    SELECT *
-    FROM stg_relation_participant
-    WHERE doc_id=?
-      AND COALESCE(name, '') != ''
-    ORDER BY name
+        SELECT 
+            participant_id,                      -- 保留原名给 line 1605 用
+            participant_id AS participant_key,   -- 伪装成 participant_key 给旧逻辑用
+            entity_name AS name,                 -- 将 entity_name 伪装成 name
+            '[]' AS relation_ids_json,           -- 伪造空数组
+            '[]' AS role_entries_json,           -- 伪造空数组
+            evidence_text AS evidence_span,      -- 将 evidence_text 伪装成 evidence_span
+            '[]' AS evidence_spans_json,         -- 伪造空数组
+            qc_reasons_json AS qc_reasons,       -- 映射警告字段
+            '[]' AS qc_warnings
+        FROM stg_relation_participant
+        WHERE doc_id = ?
     """, (doc_id,)).fetchall()
-
+    
+    # 这一行极其重要！把你查到的数据变成字典列表返回给外面的 main 函数
     return [dict(r) for r in rows]
-
 
 def participant_payload(participants: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     out = []
@@ -1528,6 +1550,12 @@ def make_empty_record(participant: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def update_participant(conn, rec: Dict[str, Any]) -> None:
+    # 为了兼容新数据库，将拆分的 reasons 和 warnings 打包成一个 JSON
+    combined_qc = {
+        "reasons": rec.get("qc_reasons", []),
+        "warnings": rec.get("qc_warnings", [])
+    }
+    
     conn.execute("""
     UPDATE stg_relation_participant
     SET
@@ -1537,16 +1565,16 @@ def update_participant(conn, rec: Dict[str, Any]) -> None:
         sequence_json=?,
         structure_json=?,
         standardization_json=?,
-        evidence_span=CASE
+        evidence_text=CASE
             WHEN COALESCE(?, '') != '' THEN ?
-            ELSE evidence_span
+            ELSE evidence_text
         END,
         confidence=?,
         status=?,
         review_required=?,
-        qc_reasons=?,
-        qc_warnings=?,
-        raw_output=?
+        qc_reasons_json=?,
+        raw_output=?,
+        updated_at=CURRENT_TIMESTAMP
     WHERE participant_id=?
     """, (
         rec["canonical_name"],
@@ -1555,14 +1583,13 @@ def update_participant(conn, rec: Dict[str, Any]) -> None:
         jdump(rec["sequence_json"]),
         jdump(rec["structure_json"]),
         jdump(rec["standardization_json"]),
-        rec["evidence_span"],
-        rec["evidence_span"],
+        rec["evidence_span"],  # Python 字典里仍然叫 evidence_span，映射给 SQL 第一个 ?
+        rec["evidence_span"],  # 映射给 SQL 第二个 ?
         rec["confidence"],
         rec["status"],
-        int(rec["review_required"]),
-        jdump(rec["qc_reasons"]),
-        jdump(rec["qc_warnings"]),
-        jdump(rec["raw_output"]),
+        int(rec.get("review_required", 0)),
+        jdump(combined_qc),    # 写入新的 qc_reasons_json 列
+        jdump(rec.get("raw_output", {})),
         rec["participant_id"],
     ))
 
