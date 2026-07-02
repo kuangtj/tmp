@@ -236,7 +236,7 @@ def is_table_block_category(cat: Any) -> bool:
 
 
 def ref_from_caption(text: str) -> str:
-    m = re.match(r"^\s*((?:Fig\.|Figure|Scheme|Table)\s*\d+[A-Za-z]?)", text or "", re.I)
+    m = re.match(r"^\s*((?:Fig\.|Figure|Scheme|Table)\s*(?:S)?\d+[A-Za-z]?)", text or "", re.I)
     return m.group(1) if m else ""
 
 
@@ -349,7 +349,7 @@ def run_dotsocr(input_path: Path, out_dir: Path, dots_root: str, dots_python: st
     before = {p.resolve() for p in out_dir.rglob("*") if p.suffix.lower() in [".json", ".md"]}
     t0 = time.time()
     cmd = [
-        dots_python,
+        dots_python, 
         str(dots_root_p / "dots_ocr" / "parser.py"),
         str(input_path),
         "--num_thread", str(num_thread),
@@ -1001,7 +1001,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--doc-id", required=True)
     ap.add_argument("--dots-root", default="/root/autodl-tmp/dots.ocr")
-    ap.add_argument("--dots-python", default=sys.executable)
+    ap.add_argument("--dots-python", default="/root/autodl-tmp/miniconda3/envs/dots_mocr/bin/python", help="dots_mocr的环境python")
     ap.add_argument("--num-thread", type=int, default=16)
     ap.add_argument("--dots-port", type=int, default=8001)
     ap.add_argument("--skip-supp-pdf-ocr", action="store_true", help="Register supplementary PDFs without OCR parsing.")
