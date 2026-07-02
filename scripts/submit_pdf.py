@@ -45,6 +45,29 @@ def normalize_doi(x: str) -> str:
     return x.lower()
 
 
+DOI_STRICT_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b", re.I)
+DOI_LOOSE_RE = re.compile(r"\b10\.\d{4,9}/(?:[-._;()/:A-Z0-9]|\s){6,200}", re.I)
+
+
+def extract_doi_from_text(text: str) -> str:
+    candidates = []
+
+    for m in DOI_STRICT_RE.finditer(text or ""):
+        candidates.append(normalize_doi(m.group(0)))
+
+    for m in DOI_LOOSE_RE.finditer(text or ""):
+        compact = re.sub(r"\s+", "", m.group(0))
+        m2 = DOI_STRICT_RE.match(compact)
+        if m2:
+            candidates.append(normalize_doi(m2.group(0)))
+
+    if not candidates:
+        return ""
+
+    # Prefer the longest candidate so truncated first-page DOI strings lose to fuller matches.
+    return max(candidates, key=len)
+
+
 def extract_pdf_meta(pdf: Path) -> Dict[str, str]:
     text = ""
     title = ""
@@ -61,9 +84,7 @@ def extract_pdf_meta(pdf: Path) -> Dict[str, str]:
         for page in reader.pages[:3]:
             text += "\n" + (page.extract_text() or "")
 
-        m = re.search(r"\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b", text, re.I)
-        if m:
-            doi = normalize_doi(m.group(0))
+        doi = extract_doi_from_text(text)
 
         m = re.search(r"\bPMID[:\s]*(\d{6,10})\b", text, re.I)
         if m:
@@ -202,10 +223,28 @@ def main() -> None:
 
     pdf_dst = raw_dir / "paper.pdf"
     shutil.copy2(pdf, pdf_dst)
-    supp_dst = copy_supplementary(supp, raw_dir / "supplementary") if supp else ""
 
+    supp_dst = ""
     status = "pending_parse" if meta.get("ok") else "failed_ingest"
+    
+    if supp:
+        if not supp.exists():
+            # 如果路径不存在，记录错误并拦截任务
+            error_msg = f"supplement_dir_not_found: {args.supp_dir}"
+            meta["error"] = (meta.get("error", "") + f" | {error_msg}").strip(" |")
+            status = "failed_ingest"
+        else:
+            # 路径存在，正常拷贝
+            supp_dst = copy_supplementary(supp, raw_dir / "supplementary")
+    # ----------------------------------------
+
     upsert_raw_document(doc_id, meta, pdf_dst, supp_dst, status, pdf)
+
+    
+#    supp_dst = copy_supplementary(supp, raw_dir / "supplementary") if supp else ""
+#
+#    status = "pending_parse" if meta.get("ok") else "failed_ingest"
+#    upsert_raw_document(doc_id, meta, pdf_dst, supp_dst, status, pdf)
 
     task_id = ""
     if status == "pending_parse" and not args.no_enqueue and enqueue is not None:
